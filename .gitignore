@@ -1,0 +1,18 @@
+# trace-repro demo artefacts
+# The generated reproduction tests are evidence of a run, not source to commit.
+demo/*/tests/repro/test_incident_*.py
+tests/repro/test_incident_*.py
+*.orig
+
+# Python
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.ruff_cache/
+# Build & Environments
+*.egg-info/
+build/
+dist/
+.venv/
+artifacts/
+artifacts_test/

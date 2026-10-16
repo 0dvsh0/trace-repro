@@ -1,0 +1,55 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "trace-repro"
+version = "0.1.0"
+description = "Autonomous cross-trace bug reproducer and causal self-healing engine"
+readme = "README.md"
+requires-python = ">=3.10"
+license = { text = "MIT" }
+authors = [{ name = "trace-repro" }]
+keywords = ["observability", "falkordb", "opentelemetry", "concurrency", "debugging"]
+classifiers = [
+  "Programming Language :: Python :: 3",
+  "Topic :: Software Development :: Debuggers",
+  "Topic :: System :: Monitoring",
+]
+dependencies = [
+  "falkordb>=1.8.0",
+]
+
+[project.optional-dependencies]
+dev = ["pytest>=8", "ruff>=0.6"]
+serve = []
+
+[project.scripts]
+trace-repro = "trace_repro.cli:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+include = ["trace_repro*"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["src", "demo/checkout", "demo/inventory", "demo/payments"]
+addopts = "-q"
+markers = [
+  "integration: tests that require a live FalkorDB server",
+  "slow: tests that take more than a second",
+]
+
+[tool.ruff]
+line-length = 100
+target-version = "py310"
+src = ["src", "demo"]
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "UP", "B"]
+ignore = ["E501"]
+
+[tool.ruff.lint.per-file-ignores]
+# Generated reproduction tests are evidence of a run, not hand-written source;
+# their import grouping belongs to the target repository's isort configuration.
+"demo/*/tests/repro/test_incident_*.py" = ["I001"]
