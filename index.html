@@ -25,10 +25,11 @@
         <a href="#walkthrough">Watch it work</a>
         <a href="#graph">Why a graph</a>
         <a href="#compare">Compare</a>
+        <a href="#demo">Demo</a>
         <a href="#engineers">Engineers</a>
       </nav>
       <div class="header-actions">
-        <a href="#demo" class="btn btn-solid btn-sm">Watch the demo <span class="btn-arrow">→</span></a>
+        <a href="https://youtu.be/-uoCZpG7Rfk" target="_blank" rel="noopener noreferrer" class="btn btn-solid btn-sm js-watch-demo" aria-haspopup="dialog" aria-controls="video-modal">Watch the demo <span class="btn-arrow">→</span></a>
         <button id="menu-toggle" class="menu-toggle" aria-label="Open menu" aria-expanded="false" aria-controls="primary-nav">
           <span></span><span></span>
         </button>
@@ -50,7 +51,7 @@
           </p>
           <div class="hero-ctas">
             <a href="#walkthrough" class="btn btn-solid">See it solve a real bug <span class="btn-arrow">→</span></a>
-            <a href="#demo" class="btn btn-line">Watch the 3-min demo</a>
+            <a href="https://youtu.be/-uoCZpG7Rfk" target="_blank" rel="noopener noreferrer" class="btn btn-line js-watch-demo" aria-haspopup="dialog" aria-controls="video-modal"><span class="btn-play-icon" aria-hidden="true">▶</span> Watch the 3-min demo</a>
           </div>
           <p class="hero-built">Built on <strong>FalkorDB</strong><i>/</i><strong>GitLab Duo</strong><i>/</i><strong>Google Cloud Run</strong></p>
         </div>
@@ -474,27 +475,57 @@ async def test_incident_8812_cross_trace_race(client, worker, seed_order):
       <div class="frame">
         <div class="section-label"><span>09</span>The demo</div>
         <h2 class="statement">Three minutes.<br>One <em>"wait, what?"</em> moment.</h2>
+        <p class="section-lede">Watch <code>trace-repro</code> autonomously capture a cross-trace race on Google Cloud Run, query the FalkorDB causal context layer, synthesize a failing test, and deploy the verified fix with zero human prompts.</p>
       </div>
+
+      <!-- Embedded Demo Video Console -->
+      <div class="frame demo-stage">
+        <div class="demo-player-card">
+          <div class="demo-player-bar">
+            <div class="demo-player-dots" aria-hidden="true">
+              <span></span><span></span><span></span>
+            </div>
+            <span class="demo-player-title">trace-repro-demo.mp4 — Autonomous Cross-Trace Bug Reproducer</span>
+            <div class="demo-player-meta">
+              <span class="demo-live-badge"><span class="badge-dot" aria-hidden="true"></span> 1080p HD</span>
+              <a href="https://youtu.be/-uoCZpG7Rfk" target="_blank" rel="noopener noreferrer" class="demo-ext-link" title="Open directly on YouTube">YouTube ↗</a>
+            </div>
+          </div>
+          <div class="demo-player-screen">
+            <iframe id="demo-embed-frame"
+              src="https://www.youtube.com/embed/-uoCZpG7Rfk?rel=0&enablejsapi=1"
+              title="trace-repro — Autonomous cross-trace bug reproducer & causal self-healing demo"
+              allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+              allowfullscreen>
+            </iframe>
+          </div>
+        </div>
+      </div>
+
       <div class="frame reel">
-        <article class="reel-cut">
+        <article class="reel-cut" data-timestamp="0" role="button" tabindex="0" title="Click to jump video to 0:00">
           <span class="reel-time">0:00 — 0:40</span>
           <h3>Normal AI gets it wrong</h3>
           <p>We break a live checkout on Cloud Run. A standard AI reads the error and slaps on a band-aid that hides the problem.</p>
+          <span class="reel-play-hint"><span aria-hidden="true">▶</span> Jump to 0:00</span>
         </article>
-        <article class="reel-cut reel-cut--hi">
+        <article class="reel-cut reel-cut--hi" data-timestamp="40" role="button" tabindex="0" title="Click to jump video to 0:40">
           <span class="reel-time">0:40 — 1:30</span>
           <h3>The graph reveals the truth</h3>
           <p>In FalkorDB, Order #8812 sits in the middle — with two separate events pointing into it, 38ms apart. Anyone gets it instantly.</p>
+          <span class="reel-play-hint"><span aria-hidden="true">▶</span> Jump to 0:40</span>
         </article>
-        <article class="reel-cut">
+        <article class="reel-cut" data-timestamp="90" role="button" tabindex="0" title="Click to jump video to 1:30">
           <span class="reel-time">1:30 — 2:30</span>
           <h3>Red, then green</h3>
           <p>With zero prompts, the agent commits a failing test first. Thirty seconds later, the real fix lands — and the pipeline turns green.</p>
+          <span class="reel-play-hint"><span aria-hidden="true">▶</span> Jump to 1:30</span>
         </article>
-        <article class="reel-cut">
+        <article class="reel-cut" data-timestamp="150" role="button" tabindex="0" title="Click to jump video to 2:30">
           <span class="reel-time">2:30 — 3:00</span>
           <h3>Healed for good</h3>
           <p>Production is redeployed, and the reproduction test joins the regression suite. This bug can never return.</p>
+          <span class="reel-play-hint"><span aria-hidden="true">▶</span> Jump to 2:30</span>
         </article>
       </div>
     </section>
@@ -550,6 +581,29 @@ async def test_incident_8812_cross_trace_race(client, worker, seed_order):
     </div>
     <div class="footer-mark" aria-hidden="true">trace-repro</div>
   </footer>
+
+  <!-- ================= VIDEO MODAL ================= -->
+  <div id="video-modal" class="video-modal" aria-hidden="true" role="dialog" aria-modal="true" aria-label="trace-repro demo video">
+    <div class="video-modal-backdrop" id="video-modal-backdrop"></div>
+    <div class="video-modal-dialog">
+      <div class="video-modal-topbar">
+        <div class="modal-dots" aria-hidden="true">
+          <span></span><span></span><span></span>
+        </div>
+        <span class="modal-title">trace-repro · 3-Minute Demo (YouTube)</span>
+        <button id="video-modal-close" class="modal-close-btn" aria-label="Close demo modal">✕</button>
+      </div>
+      <div class="video-modal-viewport">
+        <iframe id="video-modal-frame"
+          src=""
+          data-src="https://www.youtube.com/embed/-uoCZpG7Rfk?autoplay=1&rel=0&enablejsapi=1"
+          title="trace-repro demo video"
+          allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+          allowfullscreen>
+        </iframe>
+      </div>
+    </div>
+  </div>
 
   <script src="js/main.js"></script>
 </body>

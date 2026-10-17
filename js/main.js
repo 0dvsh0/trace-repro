@@ -269,6 +269,72 @@
     if (d.open) faqs.forEach((o) => { if (o !== d) o.open = false; });
   }));
 
+  /* ---------- Video Modal & Reel Player ---------- */
+  const videoModal = $('#video-modal');
+  const modalFrame = $('#video-modal-frame');
+  const modalClose = $('#video-modal-close');
+  const modalBackdrop = $('#video-modal-backdrop');
+  const inlineFrame = $('#demo-embed-frame');
+  const demoSection = $('#demo');
+
+  function openVideoModal(ts) {
+    if (!videoModal || !modalFrame) return;
+    let url = 'https://www.youtube.com/embed/-uoCZpG7Rfk?autoplay=1&rel=0&enablejsapi=1';
+    if (typeof ts === 'number' || (typeof ts === 'string' && ts.length)) {
+      url += '&start=' + ts;
+    }
+    modalFrame.src = url;
+    videoModal.classList.add('is-open');
+    videoModal.setAttribute('aria-hidden', 'false');
+    document.body.style.overflow = 'hidden';
+  }
+
+  function closeVideoModal() {
+    if (!videoModal || !modalFrame) return;
+    videoModal.classList.remove('is-open');
+    videoModal.setAttribute('aria-hidden', 'true');
+    document.body.style.overflow = '';
+    modalFrame.src = '';
+  }
+
+  $$('.js-watch-demo').forEach((btn) => {
+    btn.addEventListener('click', (e) => {
+      e.preventDefault();
+      openVideoModal();
+    });
+  });
+
+  if (modalClose) modalClose.addEventListener('click', closeVideoModal);
+  if (modalBackdrop) modalBackdrop.addEventListener('click', closeVideoModal);
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape' && videoModal && videoModal.classList.contains('is-open')) {
+      closeVideoModal();
+    }
+  });
+
+  // Jump to chapter timestamps on reel click
+  const reelCuts = $$('.reel-cut[data-timestamp]');
+  reelCuts.forEach((cut) => {
+    const jump = () => {
+      const ts = cut.dataset.timestamp;
+      reelCuts.forEach((c) => c.classList.remove('reel-cut--hi'));
+      cut.classList.add('reel-cut--hi');
+      if (inlineFrame) {
+        inlineFrame.src = 'https://www.youtube.com/embed/-uoCZpG7Rfk?start=' + ts + '&autoplay=1&rel=0&enablejsapi=1';
+        demoSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      } else {
+        openVideoModal(ts);
+      }
+    };
+    cut.addEventListener('click', jump);
+    cut.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter' || e.key === ' ') {
+        e.preventDefault();
+        jump();
+      }
+    });
+  });
+
   /* ---------- Reveal on scroll ---------- */
   const targets = $$('.section-label, .statement, .section-lede, .story, .versus-col, .pillar, .case, .lens, .graph-callout, .table-scroll, .flow-step, .code-deck, .reel-cut, .faq-list, .cta-inner, .outcome');
   if (reduce || !('IntersectionObserver' in window)) {
