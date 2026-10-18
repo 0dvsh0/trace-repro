@@ -1,0 +1,112 @@
+# GitLab CI/CD Pipeline for trace-repro & the GitLab Transcend Hackathon
+# The autonomous post-incident DevSecOps lifecycle:
+#   Workload replay + trace ingestion -> FalkorDB graph causal triage ->
+#   Pipeline #1 (RED  · deterministic reproduction) -> AST self-healing ->
+#   Pipeline #2 (GREEN · verified fix) -> graph-backed governance proof -> reports
+#
+# FalkorDB service containers are per-job in GitLab CI, so every healing job is
+# self-contained: `trace-repro demo` replays the incident workload, ingests the
+# spans and state mutations into its own graph, and drives the whole
+# red -> green loop in one process. The exported junit.xml still reports
+# Pipeline #1 (RED) and Pipeline #2 (GREEN) as separate testcases in GitLab's
+# test report UI, and each stage is a collapsible section in the job log.
+
+image: python:3.11-slim
+
+variables:
+  PIP_CACHE_DIR: "$CI_PROJECT_DIR/.pip-cache"
+  PYTHONPATH: "$CI_PROJECT_DIR/src:$CI_PROJECT_DIR/demo/checkout:$CI_PROJECT_DIR/demo/inventory:$CI_PROJECT_DIR/demo/payments"
+  PYTHONDONTWRITEBYTECODE: "1"
+  FALKORDB_HOST: "falkordb"
+  FALKORDB_PORT: "6379"
+
+cache:
+  paths:
+    - .pip-cache/
+
+services:
+  - name: falkordb/falkordb:latest
+    alias: falkordb
+
+stages:
+  - lint
+  - test
+  - self_heal
+  - report
+
+before_script:
+  - python --version
+  - pip install -q -e ".[dev]"
+
+# --------------------------------------------------------------------------
+# Stage 1: Lint & Code Style
+# --------------------------------------------------------------------------
+lint:ruff:
+  stage: lint
+  script:
+    - ruff check src demo tests
+
+# --------------------------------------------------------------------------
+# Stage 2: Unit & Graph Store Tests (FalkorDB-backed integration tests included)
+# --------------------------------------------------------------------------
+test:unit:
+  stage: test
+  script:
+    - pytest -v --tb=short
+
+# --------------------------------------------------------------------------
+# Stage 3: Autonomous lifecycle - one self-contained job per scenario.
+#
+# Each scenario repository publishes an incident.json contract, so the same
+# command drives a checkout lost update, an inventory oversell and a duplicated
+# payment webhook end to end. Artifacts carry the full story:
+#   junit.xml                    Pipeline #1 RED + Pipeline #2 GREEN
+#   gl-code-quality-report.json  the cross-trace hazard, MR widget
+#   self_heal.patch              the AST diff the graph planned
+#   repro_test.py                the compiled deterministic reproduction
+#   incident_report.md           causal analysis + governance proof
+# --------------------------------------------------------------------------
+self_heal:scenario:
+  stage: self_heal
+  parallel:
+    matrix:
+      - SCENARIO: [checkout, inventory, payments]
+  script:
+    - trace-repro demo --repo "demo/$SCENARIO" --graph "falkordb://${FALKORDB_HOST}:${FALKORDB_PORT}/ci_$SCENARIO" --ci gitlab --export-reports "artifacts/$SCENARIO"
+  artifacts:
+    when: always
+    reports:
+      junit: artifacts/$SCENARIO/junit.xml
+      codequality: artifacts/$SCENARIO/gl-code-quality-report.json
+    paths:
+      - artifacts/
+    expire_in: 30 days
+
+# --------------------------------------------------------------------------
+# Stage 4a: Merge Request autoplay (manual - needs a token with api scope)
+#
+# Run this job with a GITLAB_TOKEN CI/CD variable (masked) to watch the agent
+# open `heal/incident_8812` with the reproduction test committed and a Merge
+# Request carrying the causal analysis, collision table and AST diff. Without
+# a token the step degrades to a warning instead of failing the pipeline.
+# --------------------------------------------------------------------------
+merge_request:demo:
+  stage: report
+  when: manual
+  allow_failure: true
+  script:
+    - trace-repro demo --repo demo/checkout --graph "falkordb://${FALKORDB_HOST}:${FALKORDB_PORT}/ci_mr_demo" --ci gitlab --create-mr --export-reports artifacts/mr
+
+# --------------------------------------------------------------------------
+# Stage 4b: GitLab Duo Agent Platform MCP Server Healthcheck
+#
+# Same protocol validations a Duo client performs on connect.
+# --------------------------------------------------------------------------
+duo:mcp-check:
+  stage: report
+  script:
+    - echo '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{}}' | python -m trace_repro.cli mcp --graph memory://local > mcp_init.json
+    - grep -q "trace-repro" mcp_init.json
+    - echo '{"jsonrpc":"2.0","id":2,"method":"tools/list","params":{}}' | python -m trace_repro.cli mcp --graph memory://local > mcp_tools.json
+    - grep -q "get_cross_trace_collision_graph" mcp_tools.json
+    - echo "GitLab Duo MCP Server protocol validated successfully"
