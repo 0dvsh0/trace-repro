@@ -1,0 +1,89 @@
+{
+  "key": "lost_update",
+  "title": "Lost update: a payment webhook and the cart-expiry worker clobber one order",
+  "service": "checkout-svc",
+  "package": "checkout_service",
+  "entity_type": "orders",
+  "primary_key": "8812",
+  "crash_endpoint": "POST /checkout/capture",
+  "outcome_field": "status",
+  "notes": "Two independent traces read orders:8812 before either wrote it. The webhook commits AUTHORIZED at +260ms; the expiry worker read PENDING at +190ms and commits CANCELLED at +330ms, so its stale write wins. The capture request at +560ms is correct code refusing to capture a cancelled order.",
+  "seed": {
+    "orders": {
+      "id": 8812,
+      "status": "PENDING",
+      "amount_paise": 450000,
+      "last_event_id": null,
+      "version": 0,
+      "webhook_applications": 0
+    }
+  },
+  "routes": {
+    "webhook": "checkout_service.runtime:handle_webhook",
+    "worker": "checkout_service.runtime:expire_cart_job",
+    "request": "checkout_service.runtime:capture_endpoint"
+  },
+  "participants": [
+    {
+      "kind": "webhook",
+      "endpoint": "POST /webhooks/payment",
+      "offset_ms": 0.0,
+      "payload": {
+        "order_id": 8812,
+        "event_id": "evt_8812",
+        "type": "payment.authorized"
+      }
+    },
+    {
+      "kind": "worker",
+      "endpoint": "cart-expiry worker",
+      "offset_ms": 190.0,
+      "payload": {
+        "order_id": 8812,
+        "job": "cart-expiry"
+      }
+    },
+    {
+      "kind": "request",
+      "endpoint": "POST /checkout/capture",
+      "offset_ms": 560.0,
+      "payload": {
+        "order_id": 8812,
+        "amount_paise": 450000
+      }
+    }
+  ],
+  "assertions": [
+    "final = field(db, 'orders', PRIMARY_KEY, 'status')",
+    "assert final != CORRUPT_VALUE, f'lost update still wins: {final} must not be {CORRUPT_VALUE}'",
+    "assert final in (EXPECTED_VALUE, 'CAPTURED'), f'unexpected final state: {final}'",
+    "assert int(field(db, 'orders', PRIMARY_KEY, 'webhook_applications', 0)) <= 1, 'the webhook applied this order twice'",
+    "assert int(field(db, 'wallet_credits', PRIMARY_KEY, 'credits', 0)) <= 1, 'the payment moved more than once'"
+  ],
+  "duplicate_participants": [
+    {
+      "kind": "webhook",
+      "endpoint": "POST /webhooks/payment",
+      "offset_ms": 0.0,
+      "payload": {
+        "order_id": 8812,
+        "event_id": "evt_duplicated",
+        "type": "payment.authorized"
+      }
+    },
+    {
+      "kind": "webhook",
+      "endpoint": "POST /webhooks/payment (retry)",
+      "offset_ms": 1.0,
+      "payload": {
+        "order_id": 8812,
+        "event_id": "evt_duplicated",
+        "type": "payment.authorized"
+      }
+    }
+  ],
+  "duplicate_assertions": [
+    "applied = int(field(db, 'orders', PRIMARY_KEY, 'webhook_applications', 0))",
+    "assert applied == 1, f'webhook applied {applied} times for a single event id'"
+  ]
+}
