@@ -3,6 +3,7 @@
 demo/*/tests/repro/test_incident_*.py
 tests/repro/test_incident_*.py
 *.orig
+demo/artifacts/
 
 # Python
 __pycache__/

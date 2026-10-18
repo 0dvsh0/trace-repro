@@ -1,14 +1,68 @@
 # `demo/` — three real incidents, three real services
 
+Open **`demo.html`** in a browser: it is the demo. Three incidents, three
+services, real screenshots, real telemetry.
+
+```bash
+pip install -e .
+
+python demo/showcase.py      # run all three incidents live in your terminal
+python demo/capture.py       # collect the real values into data/demo-data.js
+python demo/screenshot.py    # photograph the real windows into assets/
+```
+
+- **`demo.html`** — the demo page. Every image on it is a real screenshot; every
+  number is read out of a run.
+- **`screenshot.py`** — captures the evidence. A real PowerShell window runs the
+  command and is photographed through the Windows GDI (colours, trace ids and
+  timings included, paged top-to-bottom); a real Chromium renders the pages.
+  Nothing is drawn or mocked. Add `--falkordb` for a screenshot of FalkorDB's
+  own Browser against a live server, and `--list-manual` for the slots that
+  need your GitLab account.
+- **`capture.py`** — reads the spans, field-level state mutations, causal graph
+  and a live MCP session out of a run into `data/demo-data.js`. Run it **without
+  `--only`** so all three incidents land in the page — `--only` rewrites the file
+  with just that one.
+- **`showcase.py`** — the one-command live run, streaming all three incidents.
+- **`artifacts/<scenario>/`** — junit.xml, gl-code-quality-report.json,
+  self_heal.patch, repro_test.py, incident_report.md from the run itself.
+
+Screenshots that need infrastructure this repo cannot reach — a live FalkorDB,
+your GitLab pipeline, your Duo session — are shown as an explicit card with the
+command that produces them. Drop your own captures in `demo/assets/manual/` and
+the page picks them up. The section headline only ever reports the images that
+actually loaded, so a missing file turns it amber instead of quietly claiming a
+count it has not verified.
+
+### `assets/manual/` — the GitLab & FalkorDB shots
+
+Captured out of a signed-in browser against the live project
+(`gitlab-ai-hackathon/transcend-october-2026/…/showcase`), and each one shows the
+incident rather than an empty page:
+
+| file | what it actually shows |
+| --- | --- |
+| `gitlab-mr.png` | Merge Request !1 — the submission, its scope, and the pipeline widget |
+| `gitlab-joblog.png` | the failed `self_heal:scenario: [checkout]` job log — 253 spans, `POST /checkout/capture -> 500 InvalidStateError: Order #8812 is CANCELLED`, `orders:8812 = CANCELLED` |
+| `gitlab-pipeline.png` | pipeline #2954886147 — lint and test green, all three `self_heal` scenarios red |
+| `gitlab-ci-yml.png` | `.gitlab-ci.yml` at the `self_heal:scenario` matrix job, with its junit + code-quality artifacts |
+| `duo-agent.png` | the `causal-incident-healer` agent and the MCP tools it calls |
+| `duo-flow.png` | the `incident-causal-self-heal` flow triggered by `pipeline_failure` |
+| `falkordb-cli.png` | Cypher off the live server: the cross-trace collision on `orders:8812` |
+
+---
+
 Every directory here is a **separate repository** with its own service package,
 its own tests and its own `incident.json` contract. `trace-repro` is pointed at
 one of them with `--repo` and drives the whole loop: reproduce → triage →
 compile a failing test → patch the source → re-run → prove it from the graph.
 
-Nothing here is mocked. Each service runs genuine concurrent read-modify-write
-sequences against a real SQLite file, the crash comes out of the service's own
-error type, and RED/GREEN are two real `python -m pytest` subprocesses whose exit
-codes are the result.
+Nothing here is mocked. The flagship checkout service (`demo/checkout`) is modelled
+directly from **[`Sanoy24/fastapi-ecommerce`](https://github.com/Sanoy24/fastapi-ecommerce)**,
+a production FastAPI + SQLAlchemy + Stripe checkout repository. Each service runs
+genuine concurrent read-modify-write sequences against a real SQLite file, the crash
+comes out of the service's own error type, and RED/GREEN are two real `python -m pytest`
+subprocesses whose exit codes are the result.
 
 ## Run them
 

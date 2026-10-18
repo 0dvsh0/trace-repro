@@ -102,6 +102,14 @@ class RepairPlanner:
         if guard_edit:
             plan.edits.append(guard_edit)
 
+        django_lock = self._plan_django_row_lock(fn, already_locked or self._has_django_lock(fn))
+        if django_lock:
+            plan.edits.append(django_lock)
+
+        orm_guard = self._plan_orm_idempotency_guard(fn)
+        if orm_guard:
+            plan.edits.append(orm_guard)
+
         if not plan.edits:
             plan.notes.append("nothing to repair")
         return plan
@@ -114,6 +122,79 @@ class RepairPlanner:
         ) or any(
             isinstance(n, ast.Attribute) and n.attr == "with_for_update" for n in ast.walk(fn)
         )
+
+    @staticmethod
+    def _has_django_lock(fn) -> bool:
+        return any(
+            isinstance(n, ast.Attribute) and n.attr == "select_for_update" for n in ast.walk(fn)
+        )
+
+    # -- Django/ORM ------------------------------------------------------
+
+    def _plan_django_row_lock(self, fn, already_locked: bool) -> FixEdit | None:
+        """``Order.objects.get(...)`` -> ``...select_for_update().get(...)``
+
+        This is the ORM's spelling of the same repair: load the row with
+        ``SELECT ... FOR UPDATE`` so a concurrent writer cannot hand us a stale
+        value between the read and the write.
+
+        Only single-line chains are edited, because the edit is anchored to one
+        line and a multi-line chain has no single correct insertion point.
+        """
+        if already_locked:
+            return None
+        for node in ast.walk(fn):
+            if not isinstance(node, (ast.Assign, ast.AnnAssign)):
+                continue
+            value = node.value
+            if not isinstance(value, ast.Call):
+                continue
+            if not isinstance(value.func, ast.Attribute):
+                continue
+            terminal = value.func.attr
+            if terminal not in ("get", "first", "last"):
+                continue
+            if not self._chain_has_orm_manager(value):
+                continue
+            lineno = value.lineno
+            if value.end_lineno != lineno:
+                continue
+            line = self.lines[lineno - 1]
+            needle = f".{terminal}("
+            idx = line.rfind(needle)
+            if idx == -1:
+                continue
+            after = line[:idx] + f".select_for_update(){needle}" + line[idx + len(needle):]
+            return FixEdit(
+                strategy="django_row_lock",
+                file_path=self.file_path,
+                line=lineno,
+                before=line.rstrip("\n"),
+                after=after.rstrip("\n"),
+                rationale=(
+                    "load the row with SELECT ... FOR UPDATE so a concurrent "
+                    "writer cannot hand us a stale value before this write"
+                ),
+            )
+        return None
+
+    @staticmethod
+    def _chain_has_orm_manager(call: ast.Call) -> bool:
+        """Walk a chain like ``Order.objects.filter(...).first()``."""
+        node: ast.AST | None = call.func
+        while node is not None:
+            if isinstance(node, ast.Attribute):
+                if node.attr == "objects":
+                    return True
+                node = node.value
+            elif isinstance(node, ast.Call):
+                node = node.func
+            elif isinstance(node, ast.Name):
+                # ``get_model("order", "Order")`` style indirection
+                return True
+            else:
+                return False
+        return False
 
     def _plan_session_isolation(self, fn, already_locked: bool) -> FixEdit | None:
         """``with db.session() as s:`` -> ``with db.session(for_update=True) as s:``"""
@@ -269,6 +350,65 @@ class RepairPlanner:
             insert_after=len(guard),
             insert_indent=indent,
         )
+
+    def _plan_orm_idempotency_guard(self, fn) -> FixEdit | None:
+        """``Model.objects.create(reference=r, ...)`` -> ``get_or_create(reference=r, defaults=dict(...))``
+
+        A retried webhook is not a race, it is an at-least-once delivery
+        problem, and it corrupts data even after the lock lands. Where the
+        call already carries the provider's event reference, that reference is
+        the idempotency key: the event must apply once, however many times it
+        arrives.
+        """
+        for node in ast.walk(fn):
+            if not isinstance(node, (ast.Assign, ast.AnnAssign, ast.Expr)):
+                continue
+            value = node.value
+            if not isinstance(value, ast.Call):
+                continue
+            if not isinstance(value.func, ast.Attribute):
+                continue
+            if value.func.attr != "create" or not value.keywords:
+                continue
+            if not self._chain_has_orm_manager(value):
+                continue
+            # ``Transaction.objects.create`` -> the manager is
+            # ``Transaction.objects``, so the model itself is one hop further.
+            manager = value.func.value
+            model_node = getattr(manager, "value", None)
+            if model_node is None:
+                continue
+            lineno = value.lineno
+            if value.end_lineno != lineno:
+                continue
+
+            names = [k.arg for k in value.keywords if k.arg]
+            key = next((n for n in ("reference", "event_id", "idempotency_key")
+                        if n in names), None)
+            if key is None:
+                continue
+
+            key_value = next(k.value for k in value.keywords if k.arg == key)
+            others = [k for k in value.keywords if k.arg != key]
+            defaults = ", ".join(f"{k.arg}={ast.unparse(k.value)}" for k in others)
+            original = self.lines[lineno - 1]
+            indent = original[: len(original) - len(original.lstrip())]
+            replacement = (
+                f"{indent}{ast.unparse(model_node)}.objects.get_or_create("
+                f"{key}={ast.unparse(key_value)}, defaults=dict({defaults}))"
+            )
+            return FixEdit(
+                strategy="orm_idempotency_guard",
+                file_path=self.file_path,
+                line=lineno,
+                before=self.lines[lineno - 1].rstrip("\n"),
+                after=replacement,
+                rationale=(
+                    "delivery is at-least-once; apply this event only once by "
+                    f"keying on the provider's {key}"
+                ),
+            )
+        return None
 
     # -- safety -----------------------------------------------------------
     def validate(self, function_name: str) -> None:

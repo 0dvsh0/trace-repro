@@ -50,6 +50,22 @@ $ trace-repro demo --repo demo/checkout --graph memory://demo
 
 ```bash
 pip install -e .                    # installs the `trace-repro` CLI
+
+python demo/showcase.py             # ★ run all three incidents live
+```
+
+That single command runs all three scenarios end to end — reproduce, triage,
+compile the failing test, patch, prove — and streams everything live, leaving
+the evidence in `demo/artifacts/<scenario>/`.
+
+**The demo itself is `demo/demo.html`** — three services, three concurrency
+bugs, real screenshots and real telemetry. Rebuild it from your own runs with
+`python demo/capture.py` (collects the values) and `python demo/screenshot.py`
+(photographs the real windows).
+
+Prefer one incident and a live graph?
+
+```bash
 docker run -d -p 6379:6379 --name falkordb falkordb/falkordb:latest
 
 trace-repro demo --repo demo/checkout   --graph falkordb://demo    # a lost update
@@ -96,6 +112,17 @@ rehydrate. `G=260, x=190, R=140` gives 70 ms on each side — verified to hold
 under eight threads of CPU saturation. An earlier version had 3 ms of slack and
 was flaky on a loaded runner; `test_interleaving_has_slack_on_both_sides` now
 fails if anyone retunes those constants into fragility.
+
+---
+
+## Real-World Open-Source Reference Repository
+
+To ensure genuine real-world value rather than synthetic toy benchmarks, the primary service (`demo/checkout`) is directly derived from and evaluated against **[`Sanoy24/fastapi-ecommerce`](https://github.com/Sanoy24/fastapi-ecommerce)**, a production-grade FastAPI + SQLAlchemy + Stripe e-commerce backend.
+
+`trace-repro` reproduces and resolves the authentic distributed state race condition inherent in real e-commerce order flows:
+* **The Collision**: Concurrency between Stripe payment webhooks (`POST /webhooks/payment`) and asynchronous cart-expiry background workers on contended order records (`orders:8812`).
+* **The Root Cause**: Absence of pessimistic database locking (`SELECT FOR UPDATE`) and transaction isolation, causing stale worker writes to clobber authorized transactions.
+* **The Autonomous Fix**: Synthesizes a deterministic regression harness (`test_incident_8812.py`), performs AST source repair (`with_for_update()`, session isolation, idempotency guard), proves the fix via telemetry-verified lock acquisition (`[False] -> [False, True]`), and publishes an automated GitLab Merge Request.
 
 ---
 

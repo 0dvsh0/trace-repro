@@ -138,10 +138,10 @@ def run_demo(args, console) -> int:
     compiled = None
 
     try:
-        # ---------------- Stage 8 · Monitor ----------------------------
-        with _stage_rule(console, ci_adapter, "stage_8_monitor", "Stage 8 · Monitor — reproduce the incident"):
+        # ---------------- Stage 1 · Monitor ----------------------------
+        with _stage_rule(console, ci_adapter, "stage_1_monitor", "Stage 1 · Monitor — reproduce the incident"):
             if ci_adapter:
-                _rule(console, "Stage 8 · Monitor — reproduce the incident")
+                _rule(console, "Stage 1 · Monitor — reproduce the incident")
             outcome = reproduce(
                 store,
                 repo_root=str(repo),
@@ -158,15 +158,21 @@ def run_demo(args, console) -> int:
                 console.warn("  the workload did not fail; nothing to heal")
                 return 1
 
-        # ---------------- Stage 1 · Plan -------------------------------
-        with _stage_rule(console, ci_adapter, "stage_1_plan", "Stage 1 · Plan — cross-trace causal triage"):
+        # ---------------- Stage 2 · Plan -------------------------------
+        with _stage_rule(console, ci_adapter, "stage_2_plan", "Stage 2 · Plan — cross-trace causal triage"):
             if ci_adapter:
-                _rule(console, "Stage 1 · Plan — cross-trace causal triage")
+                _rule(console, "Stage 2 · Plan — cross-trace causal triage")
             engine = TriageEngine(store)
-            crash = engine.locate_crash()
-            console.dim(f"  stack trace blames : {crash.function_name} "
-                        f"({crash.file_path}:{crash.lineno})")
-            console.dim(f"  crashing span      : {crash.span_id}")
+            crash = engine.locate_crash(span_id=outcome.crash_span_id, error_type=outcome.error_type)
+            if crash is None:
+                crash = engine.locate_crash(error_type=outcome.error_type)
+            if crash is not None:
+                console.dim(f"  stack trace blames : {crash.function_name} "
+                            f"({crash.file_path}:{crash.lineno})")
+                console.dim(f"  crashing span      : {crash.span_id}")
+            else:
+                console.dim(f"  stack trace blames : {spec.crash_endpoint}")
+                console.dim(f"  crashing span      : {outcome.crash_span_id}")
 
             incident = engine.triage(
                 outcome.crash_span_id,
@@ -216,10 +222,10 @@ def run_demo(args, console) -> int:
                 console.red("  the reproduction did not fail; the graph missed the bug")
                 return 1
 
-        # ---------------- Stage 2 · Create -----------------------------
-        with _stage_rule(console, ci_adapter, "stage_2_create", "Stage 2 · Create — repair the upstream mutator"):
+        # ---------------- Stage 4 · Create -----------------------------
+        with _stage_rule(console, ci_adapter, "stage_4_create", "Stage 4 · Create — repair the upstream mutator"):
             if ci_adapter:
-                _rule(console, "Stage 2 · Create — repair the upstream mutator")
+                _rule(console, "Stage 4 · Create — repair the upstream mutator")
             repair = pipeline.apply_fix(incident)
             console.out(f"  {repair.summary}")
             console.out()
@@ -233,20 +239,20 @@ def run_demo(args, console) -> int:
                 elif line.startswith("@@"):
                     console.dim(f"  {line}")
 
-        # ---------------- Stage 3 · Verify GREEN -----------------------
-        with _stage_rule(console, ci_adapter, "stage_3_verify_green", "Stage 3 · Verify — re-run the same test (GREEN)"):
+        # ---------------- Stage 5 · Verify GREEN -----------------------
+        with _stage_rule(console, ci_adapter, "stage_5_verify_green", "Stage 5 · Verify — re-run the same test (GREEN)"):
             if ci_adapter:
-                _rule(console, "Stage 3 · Verify — re-run the same test (GREEN)")
+                _rule(console, "Stage 5 · Verify — re-run the same test (GREEN)")
             green = pipeline.run_green(compiled)
             green_ok = green.passed
             (console.green if green_ok else console.red)(
                 f"  pipeline #2  exit={green.exit_code}  {green.summary}"
             )
 
-        # ---------------- Stage 9 · Govern -----------------------------
-        with _stage_rule(console, ci_adapter, "stage_9_govern", "Stage 9 · Govern — before/after graph diff"):
+        # ---------------- Stage 6 · Govern -----------------------------
+        with _stage_rule(console, ci_adapter, "stage_6_govern", "Stage 6 · Govern — before/after graph diff"):
             if ci_adapter:
-                _rule(console, "Stage 9 · Govern — before/after graph diff")
+                _rule(console, "Stage 6 · Govern — before/after graph diff")
             console.dim("  reloading the target service so the patched source is what runs")
             _reload_target(repo)
 

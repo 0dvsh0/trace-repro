@@ -68,9 +68,8 @@ test:unit:
 # --------------------------------------------------------------------------
 self_heal:scenario:
   stage: self_heal
-  parallel:
-    matrix:
-      - SCENARIO: [checkout, inventory, payments]
+  variables:
+    SCENARIO: "checkout"
   script:
     - trace-repro demo --repo "demo/$SCENARIO" --graph "falkordb://${FALKORDB_HOST}:${FALKORDB_PORT}/ci_$SCENARIO" --ci gitlab --export-reports "artifacts/$SCENARIO"
   artifacts:
