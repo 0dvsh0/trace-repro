@@ -1,0 +1,259 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>trace-repro — demo · three real incidents, three real services</title>
+  <meta name="description" content="Real screenshots and real telemetry from three genuine concurrency bugs: a lost update, an oversell and a duplicate charge — diagnosed, reproduced, patched and proven by trace-repro.">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Geist:wght@300;400;500;600&family=Geist+Mono:wght@400;500&family=Instrument+Serif:ital@0;1&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="demo.css">
+</head>
+<body>
+
+  <header class="top">
+    <div class="frame top-inner">
+      <a class="brand" href="#top">
+        <span class="brand-glyph" aria-hidden="true"></span>
+        <span>trace-repro</span>
+        <span class="brand-sub">/ demo</span>
+      </a>
+      <nav class="top-nav" aria-label="Sections">
+        <a href="#incident">The incident</a>
+        <a href="#screens">Screenshots</a>
+        <a href="#telemetry">Telemetry</a>
+        <a href="#graph">The graph</a>
+        <a href="#agent">Duo agent</a>
+        <a href="#ci">CI evidence</a>
+      </nav>
+    </div>
+  </header>
+
+  <main id="top">
+
+    <!-- ================= HERO ================= -->
+    <section class="band hero">
+      <div class="frame hero-grid">
+        <div>
+          <p class="label"><b>●</b> the demo · everything below is a real run</p>
+          <h1>Three services.<br>Three concurrency bugs.<br><em>One engine that closes them.</em></h1>
+          <p class="lede">
+            Not a payments demo. A <strong>lost update</strong> in checkout, an
+            <strong>oversell</strong> in inventory, and a <strong>duplicate charge</strong> in payments —
+            three different services, three different tables, three different failure modes, the same
+            engine. Every screenshot on this page is a real window on a real run; every
+            number is read back out of the graph that run produced.
+          </p>
+          <div class="chips">
+            <span class="chip"><b>lost update</b> · checkout-svc</span>
+            <span class="chip"><b>oversell</b> · inventory-svc</span>
+            <span class="chip"><b>duplicate delivery</b> · payments-svc</span>
+            <span class="chip">same fix everywhere: <b>row lock + idempotency key</b></span>
+          </div>
+        </div>
+
+        <aside class="run-card">
+          <div class="run-head">
+            <span class="live"><span></span> reproduce it yourself</span>
+            <span id="run-stamp"></span>
+          </div>
+          <pre id="run-block"></pre>
+          <div class="run-foot">
+            No Docker, no cloud account, no fixtures — the scenarios are real
+            services with real concurrent writers against a real database.
+          </div>
+        </aside>
+      </div>
+    </section>
+
+    <!-- ================= SERVICE SWITCHER ================= -->
+    <div class="frame">
+      <div class="switcher" id="switcher" role="tablist" aria-label="Incidents"></div>
+    </div>
+
+    <!-- ================= THE INCIDENT ================= -->
+    <section class="band incident" id="incident">
+      <div class="frame">
+        <div class="ev-head">
+          <h3 id="inc-title"></h3>
+          <span class="tag" id="inc-tag"></span>
+        </div>
+        <div class="incident-grid">
+          <div>
+            <p class="story" id="inc-story"></p>
+            <div class="notes" id="inc-notes"></div>
+          </div>
+          <div>
+            <div class="label" style="margin-bottom:10px">what collided, and when</div>
+            <ol class="timeline" id="inc-timeline"></ol>
+          </div>
+        </div>
+        <div class="metrics" id="inc-metrics"></div>
+      </div>
+    </section>
+
+    <!-- ================= SCREENSHOTS ================= -->
+    <section class="band evidence" id="screens">
+      <div class="frame">
+        <div class="ev-head">
+          <h3>The service, running</h3>
+          <span class="tag is-real">real screenshot · Windows console</span>
+        </div>
+        <p class="ev-sub">
+          A real PowerShell window runs <code>trace-repro demo --repo demo/&lt;service&gt;</code> and is
+          captured through the Windows GDI — colours, trace ids and timings exactly as the engineer
+          saw them. Paged top-to-bottom because a real run is taller than one screen.
+        </p>
+        <div class="shot-grid">
+          <figure class="shot-main">
+            <img id="shot-img" alt="" src="">
+            <figcaption class="shot-cap">
+              <span id="shot-name"></span>
+              <span id="shot-page"></span>
+            </figcaption>
+          </figure>
+          <div class="shot-thumbs" id="shot-thumbs"></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ================= TELEMETRY ================= -->
+    <section class="band evidence" id="telemetry">
+      <div class="frame">
+        <div class="ev-head">
+          <h3>The telemetry it collected</h3>
+          <span class="tag is-real">read from the graph · capture.py</span>
+        </div>
+        <p class="ev-sub">
+          Not a log tail — the recorded telemetry itself: OpenTelemetry-shaped spans with their
+          real frame attribution, and the field-level state mutations on the contended row with
+          the lock state that was (or was not) held at write time.
+        </p>
+
+        <div class="label" style="margin:0 0 10px">spans on the three causal traces</div>
+        <div class="tbl-wrap">
+          <table class="data" id="tbl-spans">
+            <thead>
+              <tr><th>span</th><th>function</th><th>file:line</th><th class="num">dur</th><th>status</th><th>error</th></tr>
+            </thead>
+            <tbody></tbody>
+          </table>
+        </div>
+
+        <div class="label" style="margin:28px 0 10px">state mutations on <span id="mut-entity" class="mono"></span></div>
+        <div class="tbl-wrap">
+          <table class="data" id="tbl-mut">
+            <thead>
+              <tr><th>#</th><th class="num">+ms</th><th>field</th><th>old</th><th>new</th><th>lock_held</th><th>trace</th></tr>
+            </thead>
+            <tbody></tbody>
+          </table>
+        </div>
+
+        <div class="label" style="margin:28px 0 10px">every writer of the row, per the graph</div>
+        <div class="tbl-wrap">
+          <table class="data" id="tbl-writers">
+            <thead><tr><th>function</th><th>endpoint</th><th class="num">ts</th><th>lock_held</th></tr></thead>
+            <tbody></tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- ================= THE GRAPH ================= -->
+    <section class="band evidence" id="graph">
+      <div class="frame">
+        <div class="ev-head">
+          <h3>The graph, as traversed</h3>
+          <span class="tag" id="graph-tag">needs a live FalkorDB</span>
+        </div>
+        <p class="ev-sub">
+          The whole point of the product: two traces that share no id at all, connected only by
+          the record they both wrote. Below are the exact nodes and edges the traversal returned
+          — and, when a FalkorDB is running, a screenshot of FalkorDB's own Browser showing the
+          same graph.
+        </p>
+
+        <div id="graph-shot"></div>
+
+        <div class="label" style="margin:26px 0 10px">nodes returned by the traversal</div>
+        <div class="tbl-wrap">
+          <table class="data" id="tbl-nodes">
+            <thead><tr><th>node</th><th>kind</th><th>detail</th></tr></thead>
+            <tbody></tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- ================= DUO AGENT ================= -->
+    <section class="band evidence" id="agent">
+      <div class="frame">
+        <div class="ev-head">
+          <h3>What the agent sees</h3>
+          <span class="tag is-real">live MCP session · JSON-RPC 2.0</span>
+        </div>
+        <p class="ev-sub">
+          GitLab Duo Agent queries the same graph over MCP. Below is a real session against the
+          real server: the handshake, the tool list, and the calls it makes to name the culprit
+          and the minimal replay. Below that is the visual proof, photographed straight out of the
+          live GitLab project — the Merge Request, the CI job that reproduced the incident, the
+          pipeline that failed on purpose, the pipeline definition, the Duo agent and flow, and the
+          graph server answering Cypher.
+        </p>
+
+        <div class="transcript" id="transcript"></div>
+
+        <div class="label" style="margin:28px 0 12px">
+          Live GitLab &amp; FalkorDB visual proof · <span id="manual-count">checking…</span>
+        </div>
+        <div class="files" id="manual-slots"></div>
+        <p class="foot" style="padding:12px 0 0;border:0">
+          Captured live from the authenticated GitLab project &amp; FalkorDB instance — every image
+          above is a real page, not a mock-up. Click any thumbnail to enlarge in high resolution.
+        </p>
+      </div>
+    </section>
+
+    <!-- ================= CI EVIDENCE ================= -->
+    <section class="band evidence" id="ci">
+      <div class="frame">
+        <div class="ev-head">
+          <h3>What it leaves behind</h3>
+          <span class="tag is-real">real artifacts from the run</span>
+        </div>
+        <p class="ev-sub">
+          Every run exports the same five files — the ones a GitLab pipeline would attach and a
+          reviewer would open first.
+        </p>
+        <div class="files" id="artifacts"></div>
+      </div>
+    </section>
+
+    <!-- ================= FOOT ================= -->
+    <section class="band foot">
+      <div class="frame">
+        <h3>How this page was made</h3>
+        <ul>
+          <li><b>Screenshots</b><span>Captured by <code>demo/screenshot.py</code> — a real console window through the Windows GDI, a real Chromium for the pages. Nothing here is drawn or mocked.</span></li>
+          <li><b>Numbers and tables</b><span>Read out of a live run by <code>demo/capture.py</code> — the same store the engine wrote to.</span></li>
+          <li><b>The runs themselves</b><span><code>python demo/showcase.py</code> — the scenarios are real services, the races are real concurrency, RED and GREEN are real <code>pytest</code> subprocesses.</span></li>
+          <li><b>The patches</b><span>AST transforms, reverted after the proof — the scenario repositories are left exactly as they were found.</span></li>
+        </ul>
+        <p class="stamp" id="foot-stamp"></p>
+      </div>
+    </section>
+
+  </main>
+
+  <div class="lightbox" id="lightbox" role="dialog" aria-modal="true" aria-label="Screenshot">
+    <button class="lb-close" id="lb-close">Close ✕</button>
+    <img id="lb-img" src="" alt="">
+    <p class="lb-cap" id="lb-cap"></p>
+  </div>
+
+  <script src="data/demo-data.js"></script>
+  <script src="demo.js"></script>
+</body>
+</html>

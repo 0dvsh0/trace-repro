@@ -1,0 +1,556 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>trace-repro — Your app crashed. Something else caused it.</title>
+  <meta name="description" content="trace-repro finds the hidden event that really broke production, proves it with a test, and ships the real fix — automatically.">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Geist:wght@300;400;500;600;700&family=Geist+Mono:wght@400;500;600&family=Instrument+Serif:ital@0;1&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+  <!-- ================= HEADER ================= -->
+  <header id="site-header" class="site-header">
+    <div class="frame header-inner">
+      <a href="#hero" class="brand" aria-label="trace-repro home">
+        <span class="brand-glyph" aria-hidden="true"></span>
+        <span class="brand-word">trace-repro</span>
+      </a>
+      <nav id="primary-nav" class="primary-nav" aria-label="Primary">
+        <a href="#problem">Problem</a>
+        <a href="#how">How it works</a>
+        <a href="#walkthrough">Watch it work</a>
+        <a href="#graph">Why a graph</a>
+        <a href="#compare">Compare</a>
+        <a href="#engineers">Engineers</a>
+      </nav>
+      <div class="header-actions">
+        <a href="#demo" class="btn btn-solid btn-sm">Watch the demo <span class="btn-arrow">→</span></a>
+        <button id="menu-toggle" class="menu-toggle" aria-label="Open menu" aria-expanded="false" aria-controls="primary-nav">
+          <span></span><span></span>
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <main id="main">
+
+    <!-- ================= HERO ================= -->
+    <section id="hero" class="band hero">
+      <div class="frame hero-grid">
+        <div class="hero-copy">
+          <p class="kicker"><span class="kicker-dot"></span>Self-healing for production bugs</p>
+          <h1 class="hero-title">Your app crashed.<br>Something else <em>caused&nbsp;it.</em></h1>
+          <p class="hero-lede">
+            trace-repro finds the hidden event that really broke production, proves it with a test, and ships the real fix — automatically.
+            No war rooms. No guesswork. No band-aids.
+          </p>
+          <div class="hero-ctas">
+            <a href="#walkthrough" class="btn btn-solid">See it solve a real bug <span class="btn-arrow">→</span></a>
+            <a href="#demo" class="btn btn-line">Watch the 3-min demo</a>
+          </div>
+          <p class="hero-built">Built on <strong>FalkorDB</strong><i>/</i><strong>GitLab Duo</strong><i>/</i><strong>Google Cloud Run</strong></p>
+        </div>
+
+        <!-- Hero visual: animated incident -->
+        <figure class="hero-visual" aria-label="Animation: trace-repro connecting three events to one order and fixing the bug">
+          <div class="viz-head">
+            <span class="viz-live"><span></span>Live incident</span>
+            <span class="viz-id">Order #8812</span>
+          </div>
+          <svg id="hero-viz" class="hero-viz" viewBox="0 0 560 380" aria-hidden="true">
+            <defs>
+              <pattern id="dots" width="20" height="20" patternUnits="userSpaceOnUse"><circle cx="1" cy="1" r="1" fill="rgba(255,255,255,.07)"/></pattern>
+            </defs>
+            <rect width="560" height="380" fill="url(#dots)"/>
+
+            <path id="hv-p1" class="hv-path" d="M210 62 C 280 62, 280 190, 340 190"/>
+            <path id="hv-p2" class="hv-path" d="M210 190 L 340 190"/>
+            <path id="hv-p3" class="hv-path" d="M210 318 C 280 318, 280 190, 340 190"/>
+
+            <g id="hv-n1" class="hv-node" transform="translate(20 30)">
+              <rect width="190" height="64"/>
+              <text x="14" y="25" class="hv-t1">Payment retry</text>
+              <text x="14" y="46" class="hv-t2">background · 38ms earlier</text>
+            </g>
+            <g id="hv-n2" class="hv-node" transform="translate(20 158)">
+              <rect width="190" height="64"/>
+              <text x="14" y="25" class="hv-t1">Cart cleanup</text>
+              <text x="14" y="46" class="hv-t2">background · 26ms earlier</text>
+            </g>
+            <g id="hv-n3" class="hv-node hv-node--victim" transform="translate(20 286)">
+              <rect width="190" height="64"/>
+              <text x="14" y="25" class="hv-t1">Customer checkout</text>
+              <text x="14" y="46" class="hv-t2" id="hv-n3-sub">failed · error 500</text>
+            </g>
+
+            <g id="hv-entity" class="hv-entity" transform="translate(340 130)">
+              <rect width="200" height="120"/>
+              <text x="16" y="28" class="hv-t2">SHARED RECORD</text>
+              <text x="16" y="62" class="hv-big">Order #8812</text>
+              <text x="16" y="96" class="hv-t2" id="hv-entity-sub">status: CANCELLED</text>
+            </g>
+            <line id="hv-scan" class="hv-scan" x1="340" y1="130" x2="540" y2="130"/>
+          </svg>
+          <figcaption class="viz-foot">
+            <ol id="hv-steps" class="viz-steps">
+              <li>Crash</li><li>Trace</li><li>Found</li><li>Proved</li><li>Fixed</li>
+            </ol>
+            <p id="hv-caption" class="viz-caption" aria-live="polite">A customer's checkout just failed.</p>
+          </figcaption>
+        </figure>
+      </div>
+
+      <!-- Outcome strip -->
+      <div class="frame outcome-strip">
+        <div class="outcome"><span class="outcome-num" data-count="38" data-suffix="ms">38ms</span><span class="outcome-label">The gap where the real bug was hiding</span></div>
+        <div class="outcome"><span class="outcome-num">Days → mins</span><span class="outcome-label">From "what happened?" to the root cause</span></div>
+        <div class="outcome"><span class="outcome-num" data-count="0">0</span><span class="outcome-label">Humans needed to find, prove and fix it</span></div>
+        <div class="outcome"><span class="outcome-num">1 test</span><span class="outcome-label">Kept forever, so the bug never comes back</span></div>
+      </div>
+    </section>
+
+    <!-- ================= PROBLEM ================= -->
+    <section id="problem" class="band">
+      <div class="frame">
+        <div class="section-label"><span>01</span>The problem</div>
+        <h2 class="statement">Monitoring tools show you <em>where</em> it hurts.<br class="br-lg"> They never show you <em>who hit you.</em></h2>
+        <p class="section-lede">Modern apps do hundreds of things at once. Payments retry, carts expire, customers click "Pay" — often all on the same order. When two of them collide, the error shows up somewhere else entirely. So your team stares at the wrong place.</p>
+      </div>
+
+      <div class="frame story">
+        <p class="story-title">Anatomy of a 38-millisecond disaster</p>
+        <ol class="story-track">
+          <li class="story-event">
+            <span class="story-time">12:04:17<b>.374</b></span>
+            <span class="story-tag">Background</span>
+            <h3>The bank re-sends a payment confirmation</h3>
+            <p>The same message arrives twice. The order gets updated again — with nothing stopping it.</p>
+          </li>
+          <li class="story-event">
+            <span class="story-time">12:04:17<b>.386</b></span>
+            <span class="story-tag">Background</span>
+            <h3>A cleanup timer cancels the order</h3>
+            <p>It thinks the cart was abandoned. At that exact moment, it wasn't.</p>
+          </li>
+          <li class="story-event story-event--hit">
+            <span class="story-time">12:04:17<b>.412</b></span>
+            <span class="story-tag">Customer-facing</span>
+            <h3>The customer's checkout fails</h3>
+            <p>They see an error — or worse, get charged twice. <strong>This is the only thing that shows up as an error.</strong></p>
+          </li>
+        </ol>
+
+        <div class="blink-compare" aria-label="Timing comparison">
+          <div class="blink-row">
+            <span class="blink-label">Blink of an eye</span>
+            <span class="blink-bar"><span style="--w:100%"></span></span>
+            <span class="blink-val">~100ms</span>
+          </div>
+          <div class="blink-row blink-row--bug">
+            <span class="blink-label">The entire bug</span>
+            <span class="blink-bar"><span style="--w:38%"></span></span>
+            <span class="blink-val">38ms</span>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ================= TODAY VS ================= -->
+    <section id="today" class="band">
+      <div class="frame">
+        <div class="section-label"><span>02</span>Today vs. tomorrow</div>
+        <h2 class="statement statement--sm">The old way costs days.<br>And it usually gets the fix <em>wrong.</em></h2>
+      </div>
+      <div class="frame versus">
+        <article class="versus-col versus-col--old">
+          <header>
+            <span class="versus-tag">Without trace-repro</span>
+            <p class="versus-big">1–3 days</p>
+            <p class="versus-sub">of a senior engineer's time per incident</p>
+          </header>
+          <ul>
+            <li>Someone digs through logs from different systems, by hand, trying to guess what else happened.</li>
+            <li>AI coding tools patch the line that crashed — hiding the error instead of fixing it.</li>
+            <li>Bad data quietly piles up: double charges, wrong balances, angry customers.</li>
+            <li>The same bug returns next month, in a slightly different form.</li>
+          </ul>
+        </article>
+        <article class="versus-col versus-col--new">
+          <header>
+            <span class="versus-tag">With trace-repro</span>
+            <p class="versus-big">Minutes</p>
+            <p class="versus-sub">fully automatic, from alarm to fix</p>
+          </header>
+          <ul>
+            <li>The real cause is found by connecting every event that touched the same order.</li>
+            <li>A test recreates the exact crash before a single line of code changes.</li>
+            <li>The fix goes where the trouble started — not where it surfaced.</li>
+            <li>That test stays in your codebase forever. The bug can't sneak back.</li>
+          </ul>
+        </article>
+      </div>
+    </section>
+
+    <!-- ================= HOW ================= -->
+    <section id="how" class="band">
+      <div class="frame">
+        <div class="section-label"><span>03</span>How it works</div>
+        <h2 class="statement">Find it. Prove it. <em>Fix it.</em></h2>
+      </div>
+      <div class="frame pillars">
+        <article class="pillar">
+          <span class="pillar-num">01</span>
+          <h3>Find</h3>
+          <p class="pillar-lead">It connects the dots.</p>
+          <p>trace-repro maps every request, background job and database change into a living map. When something breaks, it walks backwards to every event that touched the same record.</p>
+          <span class="pillar-tech">FalkorDB · cross-trace graph traversal</span>
+        </article>
+        <article class="pillar pillar--red">
+          <span class="pillar-num">02</span>
+          <h3>Prove</h3>
+          <p class="pillar-lead">It recreates the crash on purpose.</p>
+          <p>Before touching any code, it writes a test that replays those exact events, in the exact order, milliseconds apart — and watches it fail. The bug is now proven, not guessed.</p>
+          <span class="pillar-tech">pytest · GitLab CI · red pipeline</span>
+        </article>
+        <article class="pillar pillar--green">
+          <span class="pillar-num">03</span>
+          <h3>Fix</h3>
+          <p class="pillar-lead">It repairs the root cause.</p>
+          <p>It follows the map to the code that started the chain reaction, adds the missing safeguard, and reruns the test until it passes. Then it ships the fix to production.</p>
+          <span class="pillar-tech">Row lock · idempotency key · Cloud Run</span>
+        </article>
+      </div>
+    </section>
+
+    <!-- ================= WALKTHROUGH ================= -->
+    <section id="walkthrough" class="band">
+      <div class="frame">
+        <div class="section-label"><span>04</span>Watch it work</div>
+        <h2 class="statement">One incident, start to finish.<br><em>Zero humans.</em></h2>
+      </div>
+
+      <div class="frame case">
+        <ol id="case-steps" class="case-steps" role="tablist" aria-label="Incident steps"></ol>
+        <div class="case-panel" role="tabpanel" aria-live="polite">
+          <div class="case-meta">
+            <span id="case-count" class="case-count">01 / 06</span>
+            <span id="case-status" class="case-status">Incident open</span>
+          </div>
+          <h3 id="case-title" class="case-title"></h3>
+          <p id="case-desc" class="case-desc"></p>
+          <div class="case-code">
+            <div class="case-code-head"><span>What the engineer sees</span><span id="case-file"></span></div>
+            <pre id="case-pre"></pre>
+          </div>
+          <div class="case-nav">
+            <button id="case-prev" class="btn btn-line btn-sm" aria-label="Previous step">← Prev</button>
+            <button id="case-play" class="btn btn-line btn-sm" aria-label="Pause autoplay">Pause</button>
+            <button id="case-next" class="btn btn-solid btn-sm" aria-label="Next step">Next →</button>
+          </div>
+          <span class="case-progress"><span id="case-bar"></span></span>
+        </div>
+      </div>
+    </section>
+
+    <!-- ================= GRAPH ================= -->
+    <section id="graph" class="band">
+      <div class="frame">
+        <div class="section-label"><span>05</span>Why a graph</div>
+        <h2 class="statement">Logs are a list.<br>Reality is a <em>web.</em></h2>
+        <p class="section-lede">Traditional tools file events by request — like sorting mail by envelope. trace-repro files them by <strong>what they touched</strong>. Suddenly three unrelated-looking events point at the same order, and the answer is obvious.</p>
+      </div>
+
+      <div class="frame lenses">
+        <figure class="lens">
+          <figcaption><span>What your tools see</span><b>50,214 events · no connection</b></figcaption>
+          <ul class="log-list" aria-label="Sample of disconnected log lines">
+            <li><time>.301</time>GET /products/442 <i>200</i></li>
+            <li><time>.318</time>POST /login <i>200</i></li>
+            <li class="is-key"><time>.374</time>POST /webhooks/payment <i>200</i></li>
+            <li><time>.379</time>GET /cart <i>200</i></li>
+            <li class="is-key"><time>.386</time>job cart-expiry <i>ok</i></li>
+            <li><time>.392</time>GET /search?q=shoes <i>200</i></li>
+            <li><time>.401</time>POST /reviews <i>201</i></li>
+            <li class="is-err"><time>.412</time>POST /checkout/capture <i>500</i></li>
+            <li><time>.420</time>GET /orders/7710 <i>200</i></li>
+          </ul>
+          <p class="lens-note">Three lines matter. Nothing tells you which.</p>
+        </figure>
+
+        <figure class="lens lens--on">
+          <figcaption><span>What trace-repro sees</span><b>3 events · 1 shared order</b></figcaption>
+          <svg class="web-viz" viewBox="0 0 440 300" aria-label="Graph: three events connected to Order 8812, with unrelated events faded out">
+            <g class="web-noise">
+              <circle cx="40" cy="40" r="4"/><circle cx="110" cy="22" r="3"/><circle cx="400" cy="34" r="4"/>
+              <circle cx="410" cy="250" r="3"/><circle cx="30" cy="262" r="4"/><circle cx="350" cy="278" r="3"/>
+              <circle cx="70" cy="150" r="3"/><circle cx="420" cy="140" r="3"/><circle cx="180" cy="285" r="3"/>
+              <line x1="40" y1="40" x2="110" y2="22"/><line x1="400" y1="34" x2="420" y2="140"/><line x1="30" y1="262" x2="180" y2="285"/>
+            </g>
+            <line class="web-edge" x1="220" y1="150" x2="120" y2="70"/>
+            <line class="web-edge" x1="220" y1="150" x2="330" y2="70"/>
+            <line class="web-edge web-edge--err" x1="220" y1="150" x2="220" y2="250"/>
+            <g class="web-node" transform="translate(120 70)"><circle r="7"/><text x="0" y="-16" text-anchor="middle">Payment retry</text></g>
+            <g class="web-node" transform="translate(330 70)"><circle r="7"/><text x="0" y="-16" text-anchor="middle">Cart cleanup</text></g>
+            <g class="web-node web-node--err" transform="translate(220 250)"><circle r="7"/><text x="0" y="28" text-anchor="middle">Checkout failed</text></g>
+            <g class="web-hub" transform="translate(220 150)">
+              <rect x="-62" y="-20" width="124" height="40"/>
+              <text x="0" y="5" text-anchor="middle">Order #8812</text>
+            </g>
+          </svg>
+          <p class="lens-note">Every event that touched the order, linked. The culprit is obvious.</p>
+        </figure>
+      </div>
+
+      <div class="frame graph-callout">
+        <p>Take the graph away and trace-repro simply can't work. <span>That's the point — the graph does the real detective work.</span></p>
+      </div>
+    </section>
+
+    <!-- ================= COMPARE ================= -->
+    <section id="compare" class="band">
+      <div class="frame">
+        <div class="section-label"><span>06</span>Compare</div>
+        <h2 class="statement">Others see the symptom.<br>We see the <em>cause.</em></h2>
+      </div>
+      <div class="frame">
+        <div class="table-scroll">
+          <table class="compare">
+            <thead>
+              <tr>
+                <th scope="col"><span class="sr-only">Capability</span></th>
+                <th scope="col">Monitoring tools<small>Datadog, Sentry, Honeycomb</small></th>
+                <th scope="col">AI coding assistants<small>Devin, SWE-Agent, Claude Code</small></th>
+                <th scope="col">Replay tools<small>Replay.io, Speedscale, RR</small></th>
+                <th scope="col" class="is-us">trace-repro<small>Causal self-healing</small></th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr><th scope="row">Connects separate events that collided</th><td class="no">No</td><td class="no">No</td><td class="no">No</td><td class="is-us yes">Yes</td></tr>
+              <tr><th scope="row">Proves the bug before changing code</th><td class="no">No</td><td class="no">No</td><td class="part">Manual</td><td class="is-us yes">Yes</td></tr>
+              <tr><th scope="row">Fixes the cause, not the symptom</th><td class="no">No</td><td class="no">Rarely</td><td class="no">No</td><td class="is-us yes">Yes</td></tr>
+              <tr><th scope="row">Pinpoints the few events that matter</th><td class="no">No</td><td class="no">No</td><td class="part">Replays everything</td><td class="is-us yes">Top 2–4 of 50,000</td></tr>
+              <tr><th scope="row">Keeps your app fast</th><td class="yes">Yes</td><td class="yes">Yes</td><td class="no">20–50% slower</td><td class="is-us yes">Yes</td></tr>
+              <tr><th scope="row">Runs end-to-end without a human</th><td class="no">No</td><td class="part">Partly</td><td class="no">No</td><td class="is-us yes">Yes</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- ================= LIFECYCLE ================= -->
+    <section id="lifecycle" class="band">
+      <div class="frame">
+        <div class="section-label"><span>07</span>End to end</div>
+        <h2 class="statement">From alarm to all-clear,<br><em>on autopilot.</em></h2>
+        <p class="section-lede">Covers every one of GitLab's nine DevSecOps stages — and runs live on Google Cloud Run.</p>
+      </div>
+      <div class="frame flow">
+        <article class="flow-step"><span class="flow-n">01</span><h3>Detect</h3><p>A crash on Cloud Run triggers trace-repro instantly.</p><span class="flow-stage">Monitor</span></article>
+        <article class="flow-step"><span class="flow-n">02</span><h3>Investigate</h3><p>The graph reveals which events collided — and opens an incident.</p><span class="flow-stage">Plan</span></article>
+        <article class="flow-step flow-step--red"><span class="flow-n">03</span><h3>Prove</h3><p>A new test reproduces the crash. Pipeline goes red.</p><span class="flow-stage">Verify</span></article>
+        <article class="flow-step flow-step--green"><span class="flow-n">04</span><h3>Fix</h3><p>The real cause is patched. Same test turns green.</p><span class="flow-stage">Create · Verify</span></article>
+        <article class="flow-step"><span class="flow-n">05</span><h3>Ship</h3><p>Scanned, packaged and rolled out safely to production.</p><span class="flow-stage">Secure · Package · Configure · Release</span></article>
+        <article class="flow-step"><span class="flow-n">06</span><h3>Report</h3><p>A before/after map is posted as proof. Incident closed.</p><span class="flow-stage">Govern</span></article>
+      </div>
+    </section>
+
+    <!-- ================= ENGINEERS ================= -->
+    <section id="engineers" class="band">
+      <div class="frame">
+        <div class="section-label"><span>08</span>Under the hood</div>
+        <h2 class="statement statement--sm">For the engineers in the room.</h2>
+        <p class="section-lede">OpenTelemetry spans and ORM/Redis state mutations stream into FalkorDB. Independent traces are linked through shared <code>(:StateEntity)</code> nodes, and the GitLab Duo Agent queries them via MCP.</p>
+      </div>
+      <div class="frame code-deck">
+        <div class="deck-tabs" role="tablist" aria-label="Code samples">
+          <button class="deck-tab is-active" role="tab" aria-selected="true" data-panel="c-model">Graph model</button>
+          <button class="deck-tab" role="tab" aria-selected="false" data-panel="c-find">Find culprits</button>
+          <button class="deck-tab" role="tab" aria-selected="false" data-panel="c-path">Replay path</button>
+          <button class="deck-tab" role="tab" aria-selected="false" data-panel="c-test">Red test</button>
+          <button class="deck-tab" role="tab" aria-selected="false" data-panel="c-fix">Root-cause fix</button>
+          <button id="deck-copy" class="deck-copy" aria-label="Copy code">Copy</button>
+        </div>
+
+<pre class="deck-panel is-active" id="c-model"><code data-lang="cypher">// Execution layer
+(:Trace {id, entry_endpoint})
+(:Span  {id, start_ns, end_ns, status})
+
+// Stateful entity layer — the bridge between traces
+(:StateEntity   {entity_type: "Order", primary_key: "8812"})
+(:StateMutation {seq_no, ts_ns, field, old_val, new_val, lock_held: false})
+
+// Code & Git layer
+(:ASTFunction {name, file_path, line_range})
+(:GitCommit   {sha, mr_iid})
+
+// Causal edges
+(:Span)-[:EXECUTED_FUNCTION]->(:ASTFunction)
+(:Span)-[:WROTE_ENTITY {ts_ns, delta_json, tx_isolation}]->(:StateEntity)
+(:Span)-[:READ_ENTITY  {ts_ns, snapshot_version}]->(:StateEntity)
+(:StateMutation)-[:HAPPENED_BEFORE {delta_ms: 38, concurrent_overlap: true}]->(:StateMutation)</code></pre>
+
+<pre class="deck-panel" id="c-find"><code data-lang="cypher">// From the crashing span, hop across shared StateEntity nodes to find
+// every OTHER independent trace that mutated the same entity before the crash
+MATCH (crash_trace:Trace)-[:HAS_SPAN]->(crash_span:Span {id: $crash_span_id})
+MATCH (crash_span)-[r_read:READ_ENTITY|WROTE_ENTITY]->(entity:StateEntity)
+MATCH (other_trace:Trace)-[:HAS_SPAN]->(mutator_span:Span)-[r_write:WROTE_ENTITY]->(entity)
+WHERE other_trace.id <> crash_trace.id
+  AND r_write.ts_ns <= r_read.ts_ns
+  AND (r_read.ts_ns - r_write.ts_ns) < 60000000000 // 60s causal window
+MATCH (mutator_span)-[:EXECUTED_FUNCTION]->(upstream_fn:ASTFunction)
+MATCH (crash_span)-[:EXECUTED_FUNCTION]->(crash_fn:ASTFunction)
+RETURN
+  entity.primary_key AS collided_entity,
+  other_trace.entry_endpoint AS interfering_request,
+  other_trace.payload_json AS interfering_payload,
+  (r_read.ts_ns - r_write.ts_ns) / 1000000.0 AS race_window_ms,
+  r_write.lock_held AS was_locked,
+  upstream_fn.file_path AS upstream_mutator_file,
+  upstream_fn.name AS upstream_mutator_function,
+  crash_fn.name AS downstream_crash_symptom
+ORDER BY r_write.ts_ns ASC</code></pre>
+
+<pre class="deck-panel" id="c-path"><code data-lang="cypher">// Exact chain of state transitions: entity creation → corrupted read.
+// Produces the ordered requests, payloads and ms delays for the replay test.
+MATCH (entity:StateEntity {primary_key: "8812"})
+MATCH (first:StateMutation {seq_no: 0})-[:MUTATED]->(entity)
+MATCH (crash:Span {id: $crash_span_id})
+MATCH p = shortestPath((first)-[:HAPPENED_BEFORE|CAUSED_READ*..12]->(crash))
+UNWIND nodes(p) AS step
+OPTIONAL MATCH (s:Span)-[:EMITTED]->(step)
+OPTIONAL MATCH (t:Trace)-[:HAS_SPAN]->(s)
+RETURN t.entry_endpoint AS request, t.payload_json AS payload,
+       step.field AS field, step.old_val AS old_val, step.new_val AS new_val,
+       step.ts_ns / 1000000.0 AS ts_ms
+ORDER BY ts_ms ASC</code></pre>
+
+<pre class="deck-panel" id="c-test"><code data-lang="python"># tests/repro/test_incident_8812.py — generated from graph:incident_8812
+import asyncio
+import pytest
+from tests.repro.harness import Barrier, replay, wallet_credits
+
+@pytest.mark.asyncio
+async def test_incident_8812_cross_trace_race(client, worker, seed_order):
+    await seed_order(id=8812, status="PENDING", amount=4500)
+    barrier = Barrier(parties=3)
+
+    # Causal subgraph: A1 (-38ms) → B2 (-26ms) → C3 (0ms)
+    webhook  = replay(client.post, "/webhooks/payment",
+                      json={"order_id": 8812, "event": "payment.retry"},
+                      barrier=barrier, offset_ms=0)
+    expiry   = replay(worker.expire_cart, order_id=8812,
+                      barrier=barrier, offset_ms=12)
+    checkout = replay(client.post, "/checkout/capture",
+                      json={"order_id": 8812}, barrier=barrier, offset_ms=38)
+
+    _, _, res = await asyncio.gather(webhook, expiry, checkout)
+
+    assert res.status_code == 200, res.json()   # RED: 500 InvalidStateError
+    assert await wallet_credits(8812) == 1      # no double-credit</code></pre>
+
+<pre class="deck-panel" id="c-fix"><code data-lang="diff">  # payments/webhooks.py — upstream mutator, not the crashing line
+  def apply_webhook(db, event):
+-     order = db.query(Order).get(event.order_id)
++     order = (db.query(Order)
++                .filter_by(id=event.order_id)
++                .with_for_update()            # SELECT ... FOR UPDATE
++                .one())
++     if order.last_event_id == event.id:     # idempotency guard
++         return order
+      order.status = transition(order.status, event)
++     order.last_event_id = event.id
+      db.commit()
+
+  # graph diff: lock_held false → true · race_condition_reproduced → resolved</code></pre>
+      </div>
+    </section>
+
+    <!-- ================= DEMO ================= -->
+    <section id="demo" class="band">
+      <div class="frame">
+        <div class="section-label"><span>09</span>The demo</div>
+        <h2 class="statement">Three minutes.<br>One <em>"wait, what?"</em> moment.</h2>
+      </div>
+      <div class="frame reel">
+        <article class="reel-cut">
+          <span class="reel-time">0:00 — 0:40</span>
+          <h3>Normal AI gets it wrong</h3>
+          <p>We break a live checkout on Cloud Run. A standard AI reads the error and slaps on a band-aid that hides the problem.</p>
+        </article>
+        <article class="reel-cut reel-cut--hi">
+          <span class="reel-time">0:40 — 1:30</span>
+          <h3>The graph reveals the truth</h3>
+          <p>In FalkorDB, Order #8812 sits in the middle — with two separate events pointing into it, 38ms apart. Anyone gets it instantly.</p>
+        </article>
+        <article class="reel-cut">
+          <span class="reel-time">1:30 — 2:30</span>
+          <h3>Red, then green</h3>
+          <p>With zero prompts, the agent commits a failing test first. Thirty seconds later, the real fix lands — and the pipeline turns green.</p>
+        </article>
+        <article class="reel-cut">
+          <span class="reel-time">2:30 — 3:00</span>
+          <h3>Healed for good</h3>
+          <p>Production is redeployed, and the reproduction test joins the regression suite. This bug can never return.</p>
+        </article>
+      </div>
+    </section>
+
+    <!-- ================= FAQ ================= -->
+    <section id="faq" class="band">
+      <div class="frame faq-grid">
+        <div>
+          <div class="section-label"><span>10</span>Questions</div>
+          <h2 class="statement statement--sm">Good questions.<br><em>Straight answers.</em></h2>
+        </div>
+        <div class="faq-list">
+          <details class="faq" open>
+            <summary>What kind of bugs does it catch?</summary>
+            <p>The nastiest kind: double charges, wrong wallet balances, orders stuck in impossible states. Bugs caused by two things happening at almost the same moment — which are exactly the ones humans struggle to find.</p>
+          </details>
+          <details class="faq">
+            <summary>Why not just use an AI coding assistant?</summary>
+            <p>They only see the line that crashed, so they patch the symptom. trace-repro proves the cause first with a failing test, then fixes it where it started.</p>
+          </details>
+          <details class="faq">
+            <summary>Do I have to rebuild my app?</summary>
+            <p>No. A lightweight middleware reports what each request touched. There's no heavy recording, and no need to replay hours of traffic.</p>
+          </details>
+          <details class="faq">
+            <summary>Will it change code without anyone checking?</summary>
+            <p>It can run fully hands-off, or stop at the merge request for approval. Either way, every fix comes with proof: a test that failed before, passes after, and a before/after map of what changed.</p>
+          </details>
+        </div>
+      </div>
+    </section>
+
+    <!-- ================= CTA ================= -->
+    <section id="cta" class="band cta">
+      <div class="frame cta-inner">
+        <h2 class="cta-title">Stop guessing.<br><em>Start proving.</em></h2>
+        <div class="cta-side">
+          <p>Find the real cause. Prove it with a test. Fix it for good — before your customers notice.</p>
+          <div class="hero-ctas">
+            <a href="#walkthrough" class="btn btn-solid">See it solve a bug <span class="btn-arrow">→</span></a>
+            <a href="#engineers" class="btn btn-line">Read the code</a>
+          </div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <footer id="site-footer" class="band site-footer">
+    <div class="frame footer-inner">
+      <a href="#hero" class="brand"><span class="brand-glyph" aria-hidden="true"></span><span class="brand-word">trace-repro</span></a>
+      <p>Autonomous cross-trace bug reproducer &amp; causal self-healing engine.</p>
+      <p class="footer-stack">FalkorDB × GitLab Duo × Google Cloud Run</p>
+    </div>
+    <div class="footer-mark" aria-hidden="true">trace-repro</div>
+  </footer>
+
+  <script src="js/main.js"></script>
+</body>
+</html>
