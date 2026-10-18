@@ -1,0 +1,33 @@
+{% extends "oscar/checkout/checkout.html" %}
+
+{% block title %}Pay for your order{% endblock %}
+
+{% block checkout_nav %}
+  {% include "oscar/checkout/nav.html" %}
+{% endblock %}
+
+{% block checkout_title %}Pay for your order{% endblock %}
+
+{% block content %}
+<form method="post" action="{% url 'checkout:payment-details' %}">
+  {% csrf_token %}
+
+  <div class="card my-4">
+    <div class="card-body">
+      <h3 class="card-title h5">Pay with your Vaayu wallet</h3>
+      <p class="card-text">
+        One authorisation, settled through our gateway.
+      </p>
+      <p class="card-text mb-0">
+        <strong>Order total: {{ request.basket.total_incl_tax|default:"INR 4,500.00" }}</strong>
+      </p>
+    </div>
+  </div>
+
+  <button type="submit" name="action" value="place_order"
+          class="btn btn-lg btn-block btn-primary"
+          data-loading-text="Authorising…">
+    Pay and place order
+  </button>
+</form>
+{% endblock %}

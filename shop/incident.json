@@ -1,0 +1,44 @@
+{
+  "key": "lost_update",
+  "title": "Lost update: the payment gateway and the cart-expiry reaper both advance one order",
+  "service": "vaayu-shop",
+  "entity_type": "oscar_order",
+  "primary_key": "number",
+  "incident_id": "oscar_100012",
+  "notes": "The customer pays. The gateway authorises the payment and writes the order to 'Placed'. 190ms later the cart-expiry reaper read that same row while it was still 'Pending', spent 140ms tidying up the basket session, and then wrote 'Cancelled' -- clobbering an authorisation it had never seen. The customer is charged INR 4,500 and the order they paid for no longer exists. The confirmation step then finds an order in a state it cannot settle and returns HTTP 500. No single trace shows the collision: the reaper is a cron sweep with its own trace id.",
+  "participants": [
+    {
+      "name": "gateway-authorisation",
+      "kind": "webhook",
+      "function": "apply_authorisation",
+      "offset_ms": 0.0,
+      "payload": { "event_id": "evt_100012", "amount_paise": 450000 }
+    },
+    {
+      "name": "cart-expiry-reaper",
+      "kind": "worker",
+      "function": "close_stale_orders",
+      "offset_ms": 190.0,
+      "payload": { "job": "cart-expiry" }
+    },
+    {
+      "name": "order-confirmation",
+      "kind": "request",
+      "function": "finalise_order",
+      "offset_ms": 560.0,
+      "payload": {}
+    }
+  ],
+  "duplicate_participants": [
+    {
+      "name": "gateway-authorisation-retry",
+      "kind": "webhook",
+      "function": "apply_authorisation",
+      "offset_ms": 5.0,
+      "payload": { "event_id": "evt_100012", "amount_paise": 450000 }
+    }
+  ],
+  "assertions": [
+    "the order a customer successfully paid for must not end up Cancelled"
+  ]
+}

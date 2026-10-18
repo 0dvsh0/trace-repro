@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>We couldn't take your payment · Vaayu Electronics</title>
+  <style>
+    :root {
+      --ink: #1f2430;
+      --muted: #5b6478;
+      --rule: #e2e6ee;
+      --bad: #b3261e;
+      --bad-bg: #fdf3f2;
+      --ok: #1a6b4a;
+      --bg: #f5f6f9;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0; background: var(--bg); color: var(--ink);
+      font: 16px/1.6 -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    }
+    .wrap { max-width: 720px; margin: 0 auto; padding: 48px 24px 72px; }
+    header { font-size: 22px; font-weight: 700; margin-bottom: 32px; }
+    header span { font-weight: 400; color: var(--muted); }
+    h1 { font-size: 30px; line-height: 1.25; margin: 0 0 20px; }
+    .alert {
+      background: var(--bad-bg); border: 1px solid #f0cfcc; border-left: 5px solid var(--bad);
+      border-radius: 8px; padding: 18px 20px; margin-bottom: 28px;
+    }
+    .alert h2 { margin: 0 0 6px; font-size: 18px; color: var(--bad); }
+    .alert p { margin: 0; color: var(--muted); }
+    .card {
+      background: #fff; border: 1px solid var(--rule); border-radius: 10px;
+      padding: 24px; margin-bottom: 28px;
+    }
+    .card h3 { margin: 0 0 12px; font-size: 17px; }
+    .card p { margin: 0 0 12px; color: var(--muted); }
+    .card p:last-child { margin-bottom: 0; }
+    .ref {
+      font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+      font-size: 13px; color: var(--muted); border-top: 1px dashed var(--rule);
+      margin-top: 16px; padding-top: 14px;
+    }
+    .btns a {
+      display: inline-block; padding: 12px 22px; border-radius: 8px;
+      text-decoration: none; font-weight: 600; margin-right: 10px;
+    }
+    .primary { background: var(--ok); color: #fff; }
+    .secondary { background: #fff; color: var(--ink); border: 1px solid var(--rule); }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <header>Vaayu Electronics <span>— Sound, without the drama.</span></header>
+
+    <h1>We couldn't take your payment</h1>
+
+    <div class="alert">
+      <h2>Your card was not charged</h2>
+      <p>Something went wrong while confirming your order. We know how
+         frustrating that is, and it has already been logged.</p>
+    </div>
+
+    <div class="card">
+      <h3>What happened, in plain English</h3>
+      <p>Our payment provider authorised your payment and told us so.</p>
+      <p>Before we could finish writing your order to our database, a scheduled
+         clean-up job decided your basket was abandoned and marked the order as
+         cancelled — using a copy of your order it had read moments earlier.</p>
+      <p>We are sorry. Your money has not moved, and the order you paid for is
+         still yours. We are fixing the job that closed it.</p>
+      <p>If you were charged, you will see the reversal within 5 working days.
+         Otherwise you can safely try again.</p>
+    </div>
+
+    <div class="btns">
+      <a class="primary" href="/catalogue/">Back to the shop</a>
+      <a class="secondary" href="mailto:support@vaayu.example">Contact support</a>
+    </div>
+
+    {% if order_number %}
+    <div class="ref">Order reference: {{ order_number }} · status: Cancelled</div>
+    {% endif %}
+  </div>
+</body>
+</html>
