@@ -1,0 +1,18 @@
+{
+  "mcpServers": {
+    "trace-repro": {
+      "command": "python",
+      "args": [
+        "-m",
+        "trace_repro.cli",
+        "mcp",
+        "--graph",
+        "falkordb://localhost:6379/trace_prod"
+      ],
+      "env": {
+        "PYTHONPATH": "src:demo"
+      },
+      "description": "GitLab Duo MCP Server exposing FalkorDB cross-trace property graph, multi-hop collision queries, minimal replay subgraph extraction, and AST upstream mutator repair planning."
+    }
+  }
+}

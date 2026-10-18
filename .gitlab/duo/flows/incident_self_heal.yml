@@ -1,0 +1,45 @@
+# GitLab Duo Flow: Autonomous Cross-Trace Incident Remediation
+# Automates the complete post-code DevSecOps loop from incident detection to MR creation.
+
+version: 1
+name: incident-causal-self-heal
+description: "Triggered on production incident or pipeline failure to autonomously compile a reproduction, repair the code, and open a verified MR."
+
+trigger:
+  events:
+    - pipeline_failure
+    - alert_webhook
+    - manual_chat
+
+steps:
+  - id: step_monitor
+    name: "Stage 8 · Monitor: Incident Ingestion"
+    action: run_command
+    command: "trace-repro triage --graph ${FALKORDB_URL} --json"
+    output_variable: incident_data
+
+  - id: step_plan
+    name: "Stage 1 · Plan: Cross-Trace Collision Graph Triage"
+    agent: causal-incident-healer
+    prompt: "Investigate incident using FalkorDB MCP tools get_cross_trace_collision_graph and upstream_mutator."
+
+  - id: step_verify_red
+    name: "Stage 3 · Verify RED: Deterministic Repro Test"
+    action: run_command
+    command: "trace-repro compile --graph ${FALKORDB_URL} --repo . && pytest tests/repro/ -v"
+    allow_failure: true
+
+  - id: step_create_repair
+    name: "Stage 2 · Create: Upstream AST Mutator Repair"
+    action: run_command
+    command: "trace-repro repair --graph ${FALKORDB_URL} --repo . --apply"
+
+  - id: step_verify_green
+    name: "Stage 3 · Verify GREEN: Proving the Self-Healing Fix"
+    action: run_command
+    command: "pytest tests/repro/ -v"
+
+  - id: step_govern
+    name: "Stage 9 · Govern: FalkorDB Graph Before/After Diff & MR"
+    action: run_command
+    command: "trace-repro demo --graph ${FALKORDB_URL} --ci gitlab --export-reports artifacts --create-mr"
