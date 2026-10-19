@@ -1,4 +1,5 @@
 # trace-repro
+**Autonomous Cross-Trace Bug Reproducer & Causal Self-Healing Engine.**
 
 [![pipeline status](https://gitlab.com/gitlab-ai-hackathon/transcend-october-2026/43388957/showcase/badges/main/pipeline.svg)](https://gitlab.com/gitlab-ai-hackathon/transcend-october-2026/43388957/showcase/-/pipelines)
 [![FalkorDB Context Layer](https://img.shields.io/badge/FalkorDB-Property%20Graph%20Layer-00e599?logo=redis&logoColor=white)](https://falkordb.com)
@@ -7,14 +8,6 @@
 [![Google Cloud Run](https://img.shields.io/badge/Deployment-Google%20Cloud%20Run-4285F4?logo=googlecloud&logoColor=white)](https://cloud.google.com/run)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 [![Python Version](https://img.shields.io/badge/Python-3.10%20%7C%203.11%20%7C%203.12%20%7C%203.13%20%7C%203.14-blue)](pyproject.toml)
-
-**Autonomous Cross-Trace Bug Reproducer & Causal Self-Healing Engine.**
-
-> **GitLab Transcend Hackathon Submission** · Author: [@0dvsh0](https://gitlab.com/0dvsh0) ([DevPost: devanshindepth](https://devpost.com/devanshindepth)) · [Onboarding Issue](https://gitlab.com/gitlab-ai-hackathon/transcend-october-2026/43388957/showcase/-/work_items/1)
->
-> **Tracks**
-> 1. **Self-Healing DevSecOps**: The full red &rarr; green remediation loop executes natively in GitLab CI with JUnit test reports, Code Quality degradation widgets, and automated Merge Requests. Exposed to GitLab Duo agents via a secure Model Context Protocol (MCP) server.
-> 2. **FalkorDB Graph Hacks (Track 01: Agents That Act on Connected Data)**: The `(:StateEntity)` property graph serves as the connected context layer that makes cross-trace race conditions visible, queryable, and mathematically reproducible.
 
 ---
 
